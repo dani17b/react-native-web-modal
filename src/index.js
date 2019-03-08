@@ -11,7 +11,9 @@ class ModalContainer extends React.Component {
         super(props);
 
         this.state = {
-            slideTranslation: new Animated.Value(0)
+            slideTranslation: new Animated.Value(0),
+            width : window.innerWidth,
+            height : window.innerHeight
         }
     }
 
@@ -86,6 +88,15 @@ class ModalContainer extends React.Component {
 
     componentDidMount() {
         if (this.props.visible) this.handleShow();
+
+        let _this = this;
+        window.addEventListener('resize', () => { 
+            _this.setState({
+              width : window.innerWidth,
+              height : window.innerHeight
+            });
+
+        })
     }
 
     getAnimationStyle() {
@@ -98,7 +109,7 @@ class ModalContainer extends React.Component {
                     {
                         translateY: this.state.slideTranslation.interpolate({
                             inputRange: [0, 1],
-                            outputRange: [Dimensions.get('window').height, 0],
+                            outputRange: [this.state.height, 0],
                             extrapolate: 'clamp',
                         }),
                     },
