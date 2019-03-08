@@ -1,70 +1,139 @@
-import React, { Component } from 'react';
-import { View,Text, ActivityIndicator, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { PropTypes } from 'react';
+import ReactDOM from 'react-dom';
+import {
+    Animated,
+    Easing,
+    Dimensions,
+} from 'react-native';
 
+class ModalContainer extends React.Component {
+    constructor(props) {
+        super(props);
 
-export class ShareSheet extends Component {
-  constructor(props) {
-    super(props);
-  }
-
-  render() {
-    return(
-      <View style={{width: "100%",height: "100%",position: "absolute",top: 0, left: 0, flex : 1, justifyContent : "center", alignItems : "center"}}>
-        <View style={{width: "60%", backgroundColor : "white",justifyContent : "center", alignItems : "center"}}>
-          <View style={{marginTop : 40}}>
-            <Text style={{textAlign : "center"}}>{this.props.shareTitle}</Text>
-          </View>
-          <View style={{marginTop : 15, flexDirection : "row"}}>
-            {this.props.children}
-          </View>
-        </View>
-      </View>
-    );
-  }
-}
-
-export class Button extends Component {
-  constructor(props) {
-    super(props);
-  }
-
-  render() {
-    return(
-      <TouchableOpacity 
-        style={{width: 75, height: 125, margin: 7.5}}
-        onPress={this.props.onPress}
-      >
-        <View style={{width : 75, height : 75}}>
-          <Image
-            source={this.props.iconSrc}
-            style={{width : 50, height : 50, margin : 12.5}}
-          />
-        </View>
-        <View style={{width : 75, height : 45, marginBottom : 15}}>
-          <Text style={{textAlign : "center"}}>{this.props.children}</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  }
-}
-
-export default {
-  shareSingle : function(options){
-    var url = null;
-
-    if(options.social == "email"){
-      url = "mailto:?subject="+encodeURIComponent(options.subject)+"&body="+encodeURIComponent(options.message + "\n\n" + options.url + "\n");
+        this.state = {
+            slideTranslation: new Animated.Value(0)
+        }
     }
 
-    if(options.social == "whatsapp"){
-      url = "whatsapp://send?text="+ encodeURIComponent(options.message + "\n\n" + options.url + "\n");
+    // Slide Animation Implementation
+    animateSlideIn = (callback) => {
+        if (this.state.animationSlide) {
+            this.state.animationSlide.stop();
+        }
+
+        const animationSlide = Animated.timing(this.state.slideTranslation, {
+            toValue: 1,
+            easing: Easing.out(Easing.poly(4)),
+            duration: 300,
+        });
+
+        this.setState(
+            {
+                animationSlide,
+            },
+            () => {
+                requestAnimationFrame(() => {
+                    this.setState({ styleFade: { display: 'flex' } }, () =>
+                        this.state.animationSlide.start(callback)
+                    );
+                });
+            }
+        );
     }
 
-    var win = window.open(url, '_self');
-    win.focus();
+    animateSlideOut = (callback) => {
+        if (this.state.animationSlide) {
+            this.state.animationSlide.stop();
+        }
 
-    return new Promise((resolve, reject) => {
-        resolve();
-    });
-  }
+        const animationSlide = Animated.timing(this.state.slideTranslation, {
+            toValue: 0,
+            easing: Easing.in(Easing.poly(4)),
+            duration: 300,
+        });
+
+        this.setState(
+            {
+                animationSlide,
+            },
+            () => {
+                requestAnimationFrame(() => {
+                    this.state.animationSlide.start(() => {
+                        this.setState(
+                            {
+                                styleFade: { display: 'none' },
+                            },
+                            callback
+                        );
+                    });
+                });
+            }
+        );
+    }
+
+    handleShow() {
+        const { onShow } = this.props;
+        this.animateSlideIn(onShow);
+    }
+
+    handleClose() {
+        const { onDismiss } = this.props;
+
+
+        this.animateSlideOut(onDismiss);
+
+    }
+
+    componentDidMount() {
+        if (this.props.visible) this.handleShow();
+    }
+
+    getAnimationStyle() {
+        const { visible } = this.props;
+        const { styleFade } = this.state;
+
+        return [
+            {
+                transform: [
+                    {
+                        translateY: this.state.slideTranslation.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [Dimensions.get('window').height, 0],
+                            extrapolate: 'clamp',
+                        }),
+                    },
+                ],
+            },
+            styleFade,
+        ];
+
+    }
+
+    componentWillReceiveProps({ visible }) {
+        if (visible && !this.props.visible) this.handleShow();
+        if (!visible && this.props.visible) this.handleClose();
+    }
+
+    render() {
+        const animationStyle = this.getAnimationStyle();
+
+        return (
+          ReactDOM.createPortal(
+            <Animated.View style={[{
+              backgroundColor : "rgba(0,0,0,0.65)",
+              position: 'fixed',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              left: 0,
+              zIndex: 9999
+            }, animationStyle]}>
+                {this.props.children}
+            </Animated.View>,
+            document.body
+          )
+        );
+    }
 }
+
+export default ModalContainer;
